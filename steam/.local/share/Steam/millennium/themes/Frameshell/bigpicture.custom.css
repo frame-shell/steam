@@ -1,0 +1,12 @@
+/* frameshell – Big Picture stays as Steam made it: it is drawn for a TV and a
+   controller, where a monospace font and thin frames read badly. Only the colors. */
+@import url("colors.css");
+
+:root {
+  --gpColor-Blue: var(--fs-primary) !important;
+  --gpColor-BlueHi: var(--fs-primary-hi) !important;
+  --gpColor-Green: var(--fs-ok) !important;
+  --gpColor-GreenHi: var(--fs-ok) !important;
+  --gpColor-Red: var(--fs-danger) !important;
+  --gpColor-RedHi: var(--fs-danger) !important;
+}

@@ -1,0 +1,35 @@
+/* frameshell – store and community pages inside Steam. These use Steam's --gp* tokens
+   heavily, so the shared rules recolor most of them. */
+@import url("colors.css");
+@import url("frameshell.css");
+
+/* Big header images keep their art; the page around them goes flat */
+body.v6,
+.responsive_page_frame,
+.page_content_ctn {
+  background: var(--fs-bg) !important;
+}
+
+.btn_green_steamui,
+.btn_blue_steamui,
+.btnv6_blue_hoverfade,
+.btn_green_white_innerfade {
+  background: transparent !important;
+  border: 1px solid var(--fs-frame) !important;
+  color: var(--fs-text) !important;
+}
+
+.btn_green_steamui:hover,
+.btn_blue_steamui:hover,
+.btnv6_blue_hoverfade:hover,
+.btn_green_white_innerfade:hover {
+  border-color: var(--fs-primary) !important;
+  color: var(--fs-primary) !important;
+}
+
+.btn_green_steamui > span,
+.btn_blue_steamui > span,
+.btnv6_blue_hoverfade > span,
+.btn_green_white_innerfade > span {
+  background: transparent !important;
+}

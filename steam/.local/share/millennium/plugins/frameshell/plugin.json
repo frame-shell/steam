@@ -1,0 +1,7 @@
+{
+  "name": "frameshell",
+  "common_name": "frameshell",
+  "description": "Sends Steam's notifications to the frameshell shell (Quickshell) instead of Steam's own popups.",
+  "version": "1.0.0",
+  "backendType": "lua"
+}

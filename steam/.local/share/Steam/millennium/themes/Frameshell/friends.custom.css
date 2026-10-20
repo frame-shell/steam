@@ -1,0 +1,145 @@
+/* frameshell – friends list and chat windows. The friends UI keeps plain class names,
+   so it can be drawn closer to the terminal look than the library. */
+@import url("colors.css");
+@import url("frameshell.css");
+
+.friendsui-container,
+.friendlist,
+.FriendsListContent,
+.chatWindow,
+.multiChatDialog,
+.ChatTabContent,
+.chatBody,
+.ChatHistoryContainer {
+  background: var(--fs-bg) !important;
+}
+
+/* Header with your own name and the search */
+.friendListHeaderContainer {
+  background: var(--fs-bg) !important;
+  border-bottom: 1px solid var(--fs-frame) !important;
+}
+
+.friendSearchInput {
+  background: var(--fs-bg) !important;
+  border: 1px solid var(--fs-frame) !important;
+  color: var(--fs-text) !important;
+}
+
+/* Group headers read like section labels: "── online (3)" */
+.friendGroup .groupHeaderContainer,
+.friendsListSectionTitle,
+.chatSectionTitle {
+  color: var(--fs-muted) !important;
+  text-transform: lowercase;
+  background: transparent !important;
+}
+
+.friendGroup .groupHeaderContainer::before,
+.friendsListSectionTitle::before {
+  content: "── ";
+  color: var(--fs-frame);
+}
+
+/* Friends: no hover cards, a left bar marks the one under the mouse */
+.friend {
+  background: transparent !important;
+  border-left: 2px solid transparent;
+}
+
+.friend:hover,
+.friend.friendStatusHover {
+  background: color-mix(in srgb, var(--fs-primary) 8%, transparent) !important;
+  border-left-color: var(--fs-primary);
+}
+
+.friend.online .playerName,
+.onlineFriends .playerName {
+  color: var(--fs-secondary) !important;
+}
+
+.friend.ingame .playerName,
+.friend.ingame .richPresenceContainer {
+  color: var(--fs-ok) !important;
+}
+
+.friend.offline .playerName,
+.offlineFriends .playerName {
+  color: var(--fs-muted) !important;
+}
+
+/* Chat tabs: framed, the active one underlined in the primary color */
+.ChatTabs,
+.chatTabSetContainer {
+  background: var(--fs-bg) !important;
+  border-bottom: 1px solid var(--fs-frame) !important;
+}
+
+.chatTab {
+  background: transparent !important;
+  border-right: 1px solid var(--fs-frame) !important;
+  color: var(--fs-muted) !important;
+}
+
+.chatTab.Active,
+.chatTab.active,
+.chatTab:hover {
+  color: var(--fs-text) !important;
+  background: var(--fs-surface) !important;
+}
+
+.chatTab.Active,
+.chatTab.active {
+  border-bottom: 2px solid var(--fs-primary) !important;
+}
+
+.ChatUnreadMessageIndicator,
+.chatUnreadCircle,
+.FriendMessageCount {
+  background: var(--fs-primary) !important;
+  color: var(--fs-bg) !important;
+}
+
+/* Messages */
+.ChatMessageBlock .speakerName,
+.chatEntry .speakerName {
+  color: var(--fs-primary) !important;
+}
+
+.FriendChatTimeStamp {
+  color: var(--fs-muted) !important;
+}
+
+.ChatMessageBlock .msgText {
+  color: var(--fs-text-dim) !important;
+}
+
+.ChatMessageInvite {
+  background: var(--fs-surface) !important;
+  border: 1px solid var(--fs-frame) !important;
+}
+
+/* The text box at the bottom */
+.chatEntry,
+.socialInputContainer {
+  background: var(--fs-bg) !important;
+  border-top: 1px solid var(--fs-frame) !important;
+  color: var(--fs-text) !important;
+}
+
+/* Group chats: channel list and members */
+.chatRoomGroupNavColumn,
+.chatRoomMembers {
+  background: var(--fs-bg) !important;
+  border-right: 1px solid var(--fs-frame) !important;
+}
+
+.chatRoomTextChannel,
+.chatRoomVoiceChannel {
+  color: var(--fs-text-dim) !important;
+}
+
+.chatRoomTextChannel:hover,
+.chatRoomVoiceChannel:hover {
+  color: var(--fs-primary) !important;
+}
