@@ -1,0 +1,13 @@
+{
+  "name": "Frameshell",
+  "author": "vxnsin",
+  "description": "frameshell for Steam: one monospace font, square corners, thin frames, colors from frame theme.",
+  "version": "1.0.0",
+  "tags": ["Minimal", "Dark", "Monospace"],
+  "github": {
+    "owner": "vxnsin",
+    "repo_name": "frameshell"
+  },
+  "Steam-WebKit": "webkit.css",
+  "UseDefaultPatches": true
+}

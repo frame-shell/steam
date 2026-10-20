@@ -1,0 +1,276 @@
+/*
+ * frameshell – Steam theme for Millennium, TUI style
+ * Same look as the Spotify and Vesktop themes: one monospace font, square corners,
+ * panels drawn as 1px frames instead of shadows and gradients. Colors come from
+ * colors.css (--fs-*), which `frame theme` writes for the active theme.
+ *
+ * Steam's library uses hashed class names that change with updates, so this file
+ * leans on what stays put: Steam's own design tokens (--gp*, --color-dull-*,
+ * --color-accent-*), element types and the plain class names of dialogs and the
+ * friends/chat window. If something stops matching after a Steam update, open the
+ * DevTools (Millennium settings → developer tools, or steam -dev) and adjust it here.
+ */
+
+/* ── Steam's design tokens ─────────────────────────────────── */
+
+:root {
+  /* System and store greys, darkest to lightest */
+  --gpSystemDarkestGrey: var(--fs-bg) !important;
+  --gpSystemDarkerGrey: var(--fs-surface) !important;
+  --gpSystemDarkGrey: var(--fs-surface2) !important;
+  --gpSystemGrey: var(--fs-frame) !important;
+  --gpSystemLightGrey: var(--fs-muted) !important;
+  --gpSystemLighterGrey: var(--fs-text-dim) !important;
+  --gpSystemLightestGrey: var(--fs-text) !important;
+
+  --gpStoreDarkestGrey: var(--fs-bg) !important;
+  --gpStoreDarkerGrey: var(--fs-bg) !important;
+  --gpStoreDarkGrey: var(--fs-surface) !important;
+  --gpStoreGrey: var(--fs-frame) !important;
+  --gpStoreLightGrey: var(--fs-muted) !important;
+  --gpStoreLighterGrey: var(--fs-text-dim) !important;
+  --gpStoreLightestGrey: var(--fs-text) !important;
+
+  /* Flat backgrounds instead of Steam's blue gradients */
+  --gpGradient-StoreBackground: var(--fs-bg) !important;
+  --gpGradient-LibraryBackground: var(--fs-bg) !important;
+
+  --gpColor-Blue: var(--fs-primary) !important;
+  --gpColor-BlueHi: var(--fs-primary-hi) !important;
+  --gpColor-ChalkyBlue: var(--fs-secondary) !important;
+  --gpColor-LightBlue: var(--fs-secondary) !important;
+  --gpColor-DustyBlue: var(--fs-frame) !important;
+  --gpColor-Green: var(--fs-ok) !important;
+  --gpColor-GreenHi: var(--fs-ok) !important;
+  --gpColor-Orange: var(--fs-warn) !important;
+  --gpColor-Yellow: var(--fs-warn) !important;
+  --gpColor-Red: var(--fs-danger) !important;
+  --gpColor-RedHi: var(--fs-danger) !important;
+
+  --gpBackground-LightSofter: color-mix(in srgb, var(--fs-text) 6%, transparent) !important;
+  --gpBackground-LightSoft: color-mix(in srgb, var(--fs-text) 10%, transparent) !important;
+  --gpBackground-LightMedium: color-mix(in srgb, var(--fs-text) 14%, transparent) !important;
+  --gpBackground-LightHard: color-mix(in srgb, var(--fs-text) 20%, transparent) !important;
+  --gpBackground-LightHarder: color-mix(in srgb, var(--fs-text) 28%, transparent) !important;
+  --gpBackground-DarkSofter: color-mix(in srgb, var(--fs-bg) 20%, transparent) !important;
+  --gpBackground-DarkSoft: color-mix(in srgb, var(--fs-bg) 40%, transparent) !important;
+  --gpBackground-DarkMedium: color-mix(in srgb, var(--fs-bg) 60%, transparent) !important;
+  --gpBackground-DarkHard: color-mix(in srgb, var(--fs-bg) 80%, transparent) !important;
+  --gpBackground-Neutral-LightSofter: color-mix(in srgb, var(--fs-text) 6%, transparent) !important;
+  --gpBackground-Neutral-LightSoft: color-mix(in srgb, var(--fs-text) 10%, transparent) !important;
+  --gpBackground-Neutral-LightMedium: color-mix(in srgb, var(--fs-text) 14%, transparent) !important;
+  --gpBackground-Neutral-LightHard: color-mix(in srgb, var(--fs-text) 20%, transparent) !important;
+  --gpBackground-Neutral-LightHarder: color-mix(in srgb, var(--fs-text) 28%, transparent) !important;
+
+  --gpCorner-Small: 0 !important;
+  --gpCorner-Medium: 0 !important;
+  --gpCorner-Large: 0 !important;
+
+  --gpShadow-Small: none !important;
+  --gpShadow-Medium: none !important;
+  --gpShadow-Large: none !important;
+  --gpShadow-XLarge: none !important;
+
+  --gpText-HeadingLarge: normal 700 24px/1.4 var(--fs-font) !important;
+  --gpText-HeadingMedium: normal 700 20px/1.4 var(--fs-font) !important;
+  --gpText-HeadingSmall: normal 700 16px/1.4 var(--fs-font) !important;
+  --gpText-BodyLarge: normal 400 15px/1.4 var(--fs-font) !important;
+  --gpText-BodyMedium: normal 400 13px/1.4 var(--fs-font) !important;
+  --gpText-BodySmall: normal 400 11px/1.4 var(--fs-font) !important;
+}
+
+/* The newer settings and overlay parts use 12-step scales ("dull" greys and an
+   accent). Steam sets them on elements with data-*-color too, so those get the
+   same values; custom properties with !important win over Steam's own. */
+:root,
+[data-dull-color],
+[data-accent-color] {
+  --color-dull-1: var(--fs-bg) !important;
+  --color-dull-2: var(--fs-surface) !important;
+  --color-dull-3: var(--fs-surface2) !important;
+  --color-dull-4: color-mix(in srgb, var(--fs-surface2), var(--fs-frame) 35%) !important;
+  --color-dull-5: color-mix(in srgb, var(--fs-surface2), var(--fs-frame) 70%) !important;
+  --color-dull-6: var(--fs-frame) !important;
+  --color-dull-7: color-mix(in srgb, var(--fs-frame), var(--fs-muted) 50%) !important;
+  --color-dull-8: var(--fs-muted) !important;
+  --color-dull-9: color-mix(in srgb, var(--fs-muted), var(--fs-text-dim) 40%) !important;
+  --color-dull-10: color-mix(in srgb, var(--fs-muted), var(--fs-text-dim) 70%) !important;
+  --color-dull-11: var(--fs-text-dim) !important;
+  --color-dull-12: var(--fs-text) !important;
+
+  --color-accent-1: color-mix(in srgb, var(--fs-bg), var(--fs-primary) 6%) !important;
+  --color-accent-2: color-mix(in srgb, var(--fs-bg), var(--fs-primary) 10%) !important;
+  --color-accent-3: color-mix(in srgb, var(--fs-bg), var(--fs-primary) 16%) !important;
+  --color-accent-4: color-mix(in srgb, var(--fs-bg), var(--fs-primary) 24%) !important;
+  --color-accent-5: color-mix(in srgb, var(--fs-bg), var(--fs-primary) 32%) !important;
+  --color-accent-6: color-mix(in srgb, var(--fs-bg), var(--fs-primary) 42%) !important;
+  --color-accent-7: color-mix(in srgb, var(--fs-bg), var(--fs-primary) 55%) !important;
+  --color-accent-8: color-mix(in srgb, var(--fs-bg), var(--fs-primary) 75%) !important;
+  --color-accent-9: var(--fs-primary) !important;
+  --color-accent-10: var(--fs-primary-hi) !important;
+  --color-accent-11: var(--fs-secondary) !important;
+  --color-accent-12: var(--fs-text) !important;
+}
+
+/* ── Everywhere ────────────────────────────────────────────── */
+
+html,
+body {
+  background-color: var(--fs-bg) !important;
+  color: var(--fs-text-dim);
+}
+
+*,
+*::before,
+*::after {
+  font-family: var(--fs-font) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+body {
+  letter-spacing: -0.02ch;
+}
+
+::selection {
+  background: var(--fs-primary) !important;
+  color: var(--fs-bg) !important;
+}
+
+::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--fs-frame) !important;
+  border: 0 !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fs-muted) !important;
+}
+
+a {
+  color: var(--fs-secondary);
+}
+
+a:hover {
+  color: var(--fs-primary);
+}
+
+/* ── Dialogs, buttons, inputs ──────────────────────────────── */
+
+.DialogContent,
+.ModalDialogPopup,
+.ModalPosition_Content {
+  background: var(--fs-bg) !important;
+  border: 1px solid var(--fs-frame) !important;
+}
+
+.DialogHeader {
+  color: var(--fs-primary) !important;
+  text-transform: lowercase;
+  letter-spacing: 0;
+}
+
+.DialogBody,
+.DialogBodyText,
+.DialogLabel {
+  color: var(--fs-text-dim) !important;
+}
+
+.DialogFooter {
+  border-top: 1px solid var(--fs-frame) !important;
+}
+
+.DialogButton {
+  background: transparent !important;
+  color: var(--fs-text) !important;
+  border: 1px solid var(--fs-frame) !important;
+  text-transform: lowercase;
+}
+
+.DialogButton:hover:not(:disabled),
+.DialogButton.gpfocus,
+.DialogButton:focus-visible {
+  border-color: var(--fs-primary) !important;
+  color: var(--fs-primary) !important;
+  background: color-mix(in srgb, var(--fs-primary) 10%, transparent) !important;
+}
+
+.DialogButton:disabled,
+.DialogButton.Disabled {
+  color: var(--fs-muted) !important;
+  border-color: var(--fs-surface2) !important;
+}
+
+.DialogInput_Wrapper,
+.DialogTextInputBase,
+.DialogDropDown,
+input[type="text"],
+input[type="search"],
+input[type="password"],
+textarea {
+  background: var(--fs-bg) !important;
+  color: var(--fs-text) !important;
+  border: 1px solid var(--fs-frame) !important;
+}
+
+.DialogTextInputBase:focus,
+.DialogDropDown:hover,
+input:focus,
+textarea:focus {
+  border-color: var(--fs-primary) !important;
+  outline: none !important;
+}
+
+.DialogInputPlaceholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--fs-muted) !important;
+}
+
+.DialogCheckbox {
+  background: transparent !important;
+  border: 1px solid var(--fs-frame) !important;
+}
+
+/* Window title bars */
+.TitleBar,
+.title-area,
+.titleBarContainer {
+  background: var(--fs-bg) !important;
+  border-bottom: 1px solid var(--fs-frame);
+}
+
+/* Tooltips and context menus: a frame on the background, nothing floating */
+[class*="tooltip" i],
+[class*="ContextMenu" i][class*="Popup" i],
+.contextMenuItem {
+  background: var(--fs-bg) !important;
+  color: var(--fs-text) !important;
+}
+
+[class*="tooltip" i],
+[class*="ContextMenu" i][class*="Popup" i] {
+  border: 1px solid var(--fs-frame) !important;
+}
+
+.contextMenuItem:hover {
+  background: color-mix(in srgb, var(--fs-primary) 14%, transparent) !important;
+  color: var(--fs-primary) !important;
+}
+
+/* Progress bars (downloads, updates) */
+progress,
+[class*="ProgressBar" i] {
+  background: var(--fs-surface) !important;
+}

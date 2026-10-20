@@ -1,0 +1,23 @@
+/* frameshell – main Steam window, menus, dialogs, the in-game overlay and the toast
+   popups (Millennium's default patches send all of these here). */
+@import url("colors.css");
+@import url("frameshell.css");
+
+/* Toasts, for the ones that still show (the frameshell plugin moves most of them to
+   the shell): a framed box with a primary bar on the left */
+.DesktopToastContainer,
+.DesktopToastContainer > div {
+  background: var(--fs-bg) !important;
+  color: var(--fs-text) !important;
+}
+
+.DesktopToastContainer {
+  border: 1px solid var(--fs-frame) !important;
+  border-left: 3px solid var(--fs-primary) !important;
+}
+
+/* Context menus get Millennium's helper class on their window */
+.MillenniumWindow_ContextMenu body {
+  background: var(--fs-bg) !important;
+  border: 1px solid var(--fs-frame);
+}
