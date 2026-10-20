@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""frame-steam-css – recolors Steam's own stylesheets for the Frameshell Millennium theme.
+
+Steam's desktop UI (library, downloads, settings pages, friends) is styled in
+steamui/css/sp.css and library.css with hashed class names that change with every Steam
+update, and with literal colors instead of design tokens. So the theme cannot name the
+classes; this script reads the installed Steam's CSS and, for every rule that paints one of
+Steam's colors, writes a rule for the same selector that paints the theme's variable instead:
+
+    ._3kXb9…{background:#23262e}  →  ._3kXb9…{background:var(--fs-bg)!important}
+
+Greys are sorted by brightness into the theme's surfaces and text colors, Steam's blues,
+greens, oranges and reds go to the matching accent, every other saturated color (collection
+labels, game art tints) is left alone, and so are translucent overlays and fades over art.
+
+The result goes to generated.css next to the theme, imported by libraryroot.custom.css,
+webkit.css and friends.custom.css. `frame theme` and `frame update steam` run it; run it by
+hand after a Steam update if the library lost its colors, then restart Steam.
+
+    frame-steam-css            write generated.css
+    frame-steam-css --stats    only print what would be written
+"""
+import os
+import re
+import sys
+from collections import defaultdict
+
+HOME = os.path.expanduser("~")
+STEAM_UI = os.path.join(HOME, ".local/share/Steam/steamui/css")
+THEME = os.path.join(HOME, ".local/share/Steam/millennium/themes/Frameshell")
+OUT = os.path.join(THEME, "generated.css")
+SOURCES = ["sp.css", "library.css", "chunk~1a96cdf59.css", "discoveryqueue.css", "gamerecording.css"]
+
+# Steam's accent colors (saturated; greys are classified by brightness below)
+ACCENT = {}
+for h in ("0099d1", "1a9fff", "66c0f4", "67c1f5", "47bfff", "2d73ff", "1a44c2", "008ada", "1e90ff", "0065bc", "4b619b"):
+    ACCENT[h] = "blue"
+for h in ("00ccff", "52b8e0", "5ccfe6"):
+    ACCENT[h] = "cyan"
+for h in ("59bf40", "5c7e10", "a4d007", "8ac329", "4a7a16", "3e862d", "c9ffc9", "90ba3c", "a1cd44"):
+    ACCENT[h] = "green"
+for h in ("f37d07", "ffc82c", "ffbf00", "ffd55f", "e8a33c"):
+    ACCENT[h] = "orange"
+for h in ("c44848", "e24044", "d94126", "de3618", "d13447", "ff4040"):
+    ACCENT[h] = "red"
+
+ACCENT_VAR = {
+    "bg": {"blue": "--fs-primary", "cyan": "--fs-cyan", "green": "--fs-ok", "orange": "--fs-warn", "red": "--fs-danger"},
+    "fg": {"blue": "--fs-secondary", "cyan": "--fs-cyan", "green": "--fs-ok", "orange": "--fs-warn", "red": "--fs-danger"},
+    "border": {"blue": "--fs-primary", "cyan": "--fs-cyan", "green": "--fs-ok", "orange": "--fs-warn", "red": "--fs-danger"},
+}
+
+GREY_CHROMA = 0.12  # (max channel - min channel) / 255 at or below this counts as grey
+
+HEX = re.compile(r"#([0-9a-fA-F]{6})\b|#([0-9a-fA-F]{3})\b(?![0-9a-fA-F])")
+RGB = re.compile(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+))?\s*\)")
+RULE = re.compile(r"([^{}]+)\{([^{}]*)\}")
+SKIP_SELECTOR = re.compile(r"^\s*(\d+%|from|to)\s*$")
+DECL = re.compile(r"(?:^|;)\s*([a-z-]+)\s*:\s*([^;]+)")
+
+PROPS = {
+    "background": "bg", "background-color": "bg", "background-image": "bg",
+    "color": "fg", "fill": "fg", "stroke": "fg", "caret-color": "fg",
+    "border": "border", "border-color": "border", "outline-color": "border", "outline": "border",
+    "border-top": "border", "border-right": "border", "border-bottom": "border", "border-left": "border",
+    "border-top-color": "border", "border-right-color": "border", "border-bottom-color": "border",
+    "border-left-color": "border",
+}
+
+
+def colors_in(value):
+    """Opaque colors in a CSS value as 6-digit lowercase hex, translucent ones left out."""
+    found = []
+    for m in HEX.finditer(value):
+        h = m.group(1) or "".join(c * 2 for c in m.group(2))
+        found.append(h.lower())
+    for m in RGB.finditer(value):
+        if m.group(4) is not None and float(m.group(4)) < 0.85:
+            continue
+        found.append("%02x%02x%02x" % (int(m.group(1)), int(m.group(2)), int(m.group(3))))
+    return found
+
+
+def luminance(h):
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def is_grey(h):
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return (max(r, g, b) - min(r, g, b)) / 255 <= GREY_CHROMA
+
+
+def grey_var(h, kind):
+    lum = luminance(h)
+    if kind == "bg":
+        if h == "000000":
+            return None  # black backgrounds are video areas and overlays
+        if lum < 48: return "--fs-bg"
+        if lum < 64: return "--fs-surface"
+        if lum < 100: return "--fs-surface2"
+        if lum < 160: return "--fs-muted"
+        if lum < 215: return "--fs-text-dim"
+        return "--fs-text"
+    if kind == "fg":
+        if lum < 64: return "--fs-bg"
+        if lum < 100: return "--fs-frame"
+        if lum < 160: return "--fs-muted"
+        if lum < 215: return "--fs-text-dim"
+        return "--fs-text"
+    # border
+    if lum < 160: return "--fs-frame"
+    return "--fs-text-dim"
+
+
+def var_for(h, kind):
+    """Theme variable for one of Steam's colors in this role, or None to leave it."""
+    if h in ACCENT:
+        return ACCENT_VAR[kind][ACCENT[h]]
+    if is_grey(h):
+        return grey_var(h, kind)
+    return None
+
+
+def convert(prop, value, kind):
+    """The override declaration for one Steam declaration, or None."""
+    hexes = colors_in(value)
+    if not hexes:
+        return None
+    if kind == "bg":
+        if "gradient" in value:
+            # A flat surface instead of Steam's gradient, picked from its darkest mapped stop;
+            # gradients made only of fades (translucent stops) stay, they sit over art
+            mapped = [(luminance(h), var_for(h, "bg")) for h in hexes if var_for(h, "bg")]
+            if not mapped:
+                return None
+            var = min(mapped)[1]
+            return f"background-color:var({var})!important" if "url(" in value else f"background:var({var})!important"
+        var = var_for(hexes[0], "bg")
+        if not var:
+            return None
+        if prop == "background-color" or "url(" in value:
+            return f"background-color:var({var})!important"
+        return f"background:var({var})!important"
+    if kind == "fg":
+        var = var_for(hexes[0], "fg")
+        return f"{prop}:var({var})!important" if var else None
+    # border
+    var = var_for(hexes[0], "border")
+    if not var:
+        return None
+    if prop in ("border", "border-color"):
+        return f"border-color:var({var})!important"
+    if prop == "outline":
+        return f"outline-color:var({var})!important"
+    if prop.endswith("-color"):
+        return f"{prop}:var({var})!important"
+    return f"{prop}-color:var({var})!important"
+
+
+def main():
+    stats_only = "--stats" in sys.argv
+    by_decls = defaultdict(list)  # declarations → selectors
+    seen = set()
+    sources = []
+    for name in SOURCES:
+        path = os.path.join(STEAM_UI, name)
+        if not os.path.isfile(path):
+            continue
+        sources.append(name)
+        css = open(path, encoding="utf-8", errors="replace").read()
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+        for sel, body in RULE.findall(css):
+            sel = sel.strip()
+            if not sel or SKIP_SELECTOR.match(sel) or sel.startswith("@") or ":root" in sel:
+                continue
+            out = {}
+            for prop, value in DECL.findall(body):
+                kind = PROPS.get(prop)
+                if not kind:
+                    continue
+                d = convert(prop, value.strip(), kind)
+                if d:
+                    out[d.split(":", 1)[0]] = d  # the last declaration of a property wins
+            if out:
+                key = ";".join(out.values())
+                if (sel, key) in seen:
+                    continue
+                seen.add((sel, key))
+                by_decls[key].append(sel)
+    if not sources:
+        print(f"frame-steam-css: no Steam CSS in {STEAM_UI} (start Steam once)", file=sys.stderr)
+        return 1
+    n_rules = sum(len(v) for v in by_decls.values())
+    lines = [
+        "/* Generated by frame-steam-css from Steam's own stylesheets (" + ", ".join(sources) + ").",
+        "   Steam's colors mapped to the theme variables; do not edit, rerun the script after a",
+        "   Steam update instead. */",
+    ]
+    for decls, sels in by_decls.items():
+        lines.append(",".join(sels) + "{" + decls + "}")
+    text = "\n".join(lines) + "\n"
+    print(f"frame-steam-css: {n_rules} selectors in {len(by_decls)} rules, {len(text) // 1024} KB, from {', '.join(sources)}")
+    if stats_only:
+        return 0
+    os.makedirs(THEME, exist_ok=True)
+    with open(OUT, "w", encoding="utf-8") as f:
+        f.write(text)
+    print(f"written: {OUT}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

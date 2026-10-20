@@ -2,6 +2,7 @@
    heavily, so the shared rules recolor most of them. */
 @import url("colors.css");
 @import url("frameshell.css");
+@import url("generated.css"); /* Steam's own classes recolored, written by frame-steam-css */
 
 /* Big header images keep their art; the page around them goes flat */
 body.v6,

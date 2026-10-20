@@ -2,6 +2,7 @@
    popups (Millennium's default patches send all of these here). */
 @import url("colors.css");
 @import url("frameshell.css");
+@import url("generated.css"); /* Steam's own classes recolored, written by frame-steam-css */
 
 /* Toasts, for the ones that still show (the frameshell plugin moves most of them to
    the shell): a framed box with a primary bar on the left */
