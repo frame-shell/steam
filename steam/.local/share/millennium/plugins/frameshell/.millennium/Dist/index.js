@@ -5,6 +5,12 @@
  * Unix socket) and Steam's own toast is skipped; the tray (bell) in Steam keeps them.
  * Without the shell, Steam shows its toasts as usual.
  *
+ * The hook: ProcessNotification(target, notification, action) would be the place, but on
+ * current Steam it is a bound, frozen own property of the store. So the store's
+ * BShowToast(…notification…) on the prototype is wrapped instead: it answers "no toast"
+ * for what went to the shell. Everything this file logs also lands in Steam's
+ * console-linux.txt through the backend (bridge_log), prefixed "frameshell:".
+ *
  * Hand-written in the shape Millennium's build tool emits (window.PLUGIN_LIST, default
  * export, backend IPC message 1), so there is no build step. Steam's internals are
  * minified and change with updates: every lookup is guarded, and a part that breaks
@@ -31,15 +37,23 @@
     let patched = false;
     const seen = new Set();
 
-    const log = (...args) => console.log("%c frameshell ", "background:#5d6fe8;color:#fff", ...args);
+    const log = (...args) => {
+        console.log("%c frameshell ", "background:#5d6fe8;color:#fff", ...args);
+        try {
+            backend("bridge_log", args.map(a => (a instanceof Error ? `${a.message} ${a.stack ?? ""}` : typeof a === "string" ? a : JSON.stringify(a))).join(" ")).catch(() => { });
+        } catch { }
+    };
 
     function backend(method, ...args) {
         return window.MILLENNIUM_API.ffi(pluginName, method)(...args);
     }
 
     function send(event) {
-        if (connected)
-            backend("bridge_send", JSON.stringify(event)).catch(() => { });
+        if (!connected)
+            return;
+        backend("bridge_send", JSON.stringify(event)).catch(() => { });
+        if (event.type !== "hello")
+            log(`→ shell: ${event.type}${event.state ? " " + event.state : ""}${event.kind ? " " + event.kind : ""}`);
     }
 
     function hello() {
@@ -173,50 +187,125 @@
 
     // ── Hooking the toasts ───────────────────────────────────
 
-    function patch(store) {
-        const original = store?.ProcessNotification;
-        if (typeof original !== "function")
+    // Replaces a method where it lives (the object itself or a prototype), if that spot allows it
+    function hookMethod(store, name, wrap) {
+        let owner = store;
+        while (owner && !Object.prototype.hasOwnProperty.call(owner, name))
+            owner = Object.getPrototypeOf(owner);
+        if (!owner)
             return false;
-        if (original.__frameshell)
+        const d = Object.getOwnPropertyDescriptor(owner, name);
+        if (typeof d.value !== "function")
+            return false;
+        if (d.value.__frameshell)
             return true;
+        const wrapped = wrap(d.value);
+        wrapped.__frameshell = true;
+        try {
+            if (d.writable) owner[name] = wrapped;
+            else if (d.configurable) Object.defineProperty(owner, name, { value: wrapped, writable: true, configurable: true });
+            else return false;
+        } catch {
+            return false;
+        }
+        return owner[name] === wrapped;
+    }
 
-        const wrapped = function (target, notification, action) {
+    const isNotification = x => x && typeof x === "object" && "eType" in x && "eSource" in x;
+
+    // A notification goes to the shell once; the shell gets it, Steam keeps the tray entry
+    // and skips its toast. Returns true when the toast is to be skipped.
+    function forward(notification) {
+        const id = notification?.notificationID;
+        if (!connected || id === undefined)
+            return false;
+        if (seen.has(id))
+            return true;
+        const event = toEvent(notification);
+        if (!event)
+            return false;
+        send(event);
+        seen.add(id);
+        if (seen.size > 500)
+            seen.delete(seen.values().next().value);
+        return true;
+    }
+
+    function patch(store) {
+        if (!store)
+            return false;
+        // Steam's ProcessNotification(target, notification, action) decides tray and toast.
+        // On current Steam it is a bound, frozen own property, so the second choice is
+        // BShowToast(…notification…) on the prototype, which only answers "toast or not".
+        if (hookMethod(store, "ProcessNotification", original => function (target, notification, action) {
             let skip = false;
-            try {
-                const id = notification?.notificationID;
-                if (connected && id !== undefined) {
-                    // Sent before: only keep its toast away again
-                    skip = seen.has(id);
-                    const event = skip ? null : toEvent(notification);
-                    if (event) {
-                        send(event);
-                        seen.add(id);
-                        if (seen.size > 500)
-                            seen.delete(seen.values().next().value);
-                        skip = true;
-                    }
-                }
-            } catch (e) {
-                log("could not read a notification", e);
-            }
-            // The tray entry stays, only the popup is skipped
+            try { skip = forward(notification); } catch (e) { log("could not read a notification", e); }
             if (skip)
                 target = Object.assign({}, target, { showToast: false });
             return original.call(this, target, notification, action);
-        };
-        wrapped.__frameshell = true;
-        store.ProcessNotification = wrapped;
-        return true;
+        })) {
+            log("hooked ProcessNotification");
+            return true;
+        }
+        if (hookMethod(store, "BShowToast", original => function (...args) {
+            try {
+                const notification = args.find(isNotification);
+                if (notification && forward(notification))
+                    return false;
+            } catch (e) {
+                log("could not read a notification", e);
+            }
+            return original.apply(this, args);
+        })) {
+            log("hooked BShowToast");
+            return true;
+        }
+        return false;
+    }
+
+    // What the store offers, for the log: own fields with their descriptors, the prototype's
+    // methods and the source of ProcessNotification (only when hooking it failed)
+    function inspectStore() {
+        try {
+            const store = window.NotificationStore;
+            if (!store) { log("NotificationStore: not there"); return; }
+            const own = Object.getOwnPropertyNames(store).map(k => {
+                const d = Object.getOwnPropertyDescriptor(store, k);
+                const t = typeof d.value;
+                return `${k}:${d.get ? "getter" : t}${d.writable ? "" : "!w"}${d.configurable ? "" : "!c"}`;
+            });
+            for (let i = 0; i < own.length; i += 12)
+                log(`store own ${i}: ${own.slice(i, i + 12).join(" ")}`);
+            let proto = Object.getPrototypeOf(store), depth = 0;
+            while (proto && proto !== Object.prototype && depth < 3) {
+                const names = Object.getOwnPropertyNames(proto);
+                for (let i = 0; i < names.length; i += 15)
+                    log(`store proto${depth} ${i}: ${names.slice(i, i + 15).join(" ")}`);
+                proto = Object.getPrototypeOf(proto); depth++;
+            }
+            const src = String(store.ProcessNotification);
+            for (let i = 0; i < Math.min(src.length, 2400); i += 380)
+                log(`ProcessNotification src ${i}: ${src.slice(i, i + 380)}`);
+        } catch (e) {
+            log("inspect failed", e);
+        }
     }
 
     // The store is created after login; look for it until it is there
     function waitForStore(tries = 0) {
-        if (patch(window.NotificationStore)) {
-            patched = true;
-            log("forwarding notifications to the shell");
-            hello();
-            return;
+        try {
+            if (patch(window.NotificationStore)) {
+                patched = true;
+                log("forwarding notifications to the shell");
+                hello();
+                return;
+            }
+        } catch (e) {
+            if (tries === 0)
+                log("could not hook NotificationStore", e);
         }
+        if (tries === 20)
+            inspectStore();
         if (tries === 60)
             log("NotificationStore not found yet, Steam's toasts stay on");
         setTimeout(() => waitForStore(tries + 1), tries < 60 ? 1000 : 10000);
@@ -309,7 +398,16 @@
     });
 
     (async () => {
-        await main();
-        window.MILLENNIUM_BACKEND_IPC?.postMessage(1, { pluginName });
+        try {
+            await window.MILLENNIUM_BACKEND_IPC?.postMessage(1, { pluginName });
+        } catch (e) {
+            console.log("frameshell: frontend-loaded message failed", e);
+        }
+        try {
+            await main();
+            log("frontend up");
+        } catch (e) {
+            log("frontend failed", e);
+        }
     })();
 })();

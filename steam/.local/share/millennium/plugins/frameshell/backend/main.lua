@@ -136,6 +136,15 @@ function bridge_send(line)
     return fd >= 0
 end
 
+-- Called by the frontend: one line into Millennium's log (Steam's console-linux.txt), so
+-- what the frontend does is visible without the SharedJSContext console
+function bridge_log(line)
+    if type(line) == "string" then
+        logger:info("frameshell: " .. line:sub(1, 400))
+    end
+    return true
+end
+
 -- Called by the frontend every half second: { connected, lines = { "<json>", … } }
 function bridge_poll()
     try_connect()
