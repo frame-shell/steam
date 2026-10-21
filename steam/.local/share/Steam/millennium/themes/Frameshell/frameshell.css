@@ -251,6 +251,14 @@ textarea::placeholder {
   border-bottom: 1px solid var(--fs-frame);
 }
 
+/* The main window's title bar element is only the 99px box around the window
+   controls (menu bar and account controls are siblings of it), so its bottom border
+   would show as a short stray line under the close button. It has no title text,
+   popups with a title keep their line. */
+.title-area:has(> .title-area-children:empty) {
+  border-bottom: none;
+}
+
 /* Minimize and maximize do nothing under the tiling compositor, so only the close
    button stays (.closeButton). Same classes in the main window and the friends window. */
 .title-area-icon.minimizeButton,
