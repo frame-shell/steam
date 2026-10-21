@@ -251,6 +251,15 @@ textarea::placeholder {
   border-bottom: 1px solid var(--fs-frame);
 }
 
+/* Minimize and maximize do nothing under the tiling compositor, so only the close
+   button stays (.closeButton). Same classes in the main window and the friends window. */
+.title-area-icon.minimizeButton,
+.title-area-icon.maximizeButton,
+.title-area-icon.maximizeRestoreButton,
+.title-area-icon.restoreButton {
+  display: none !important;
+}
+
 /* Tooltips and context menus: a frame on the background, nothing floating */
 [class*="tooltip" i],
 [class*="ContextMenu" i][class*="Popup" i],
